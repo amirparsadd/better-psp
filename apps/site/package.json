@@ -10,10 +10,13 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@better-psp/ocr": "workspace:*",
     "@fontsource-variable/vazirmatn": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@tesseract.js-data/eng": "1.0.0",
     "astro": "^7.3.6",
     "daisyui": "^5.7.47",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "tesseract.js": "7.0.0"
   }
 }

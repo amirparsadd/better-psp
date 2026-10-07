@@ -6,6 +6,7 @@ on:
     paths:
       - apps/site/**
       - apps/extension/package.json
+      - packages/ocr/src/**
       - pnpm-lock.yaml
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -29,7 +30,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --filter @better-psp/site
+      - run: pnpm install --frozen-lockfile --filter @better-psp/site...
       - run: pnpm --filter @better-psp/site build
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

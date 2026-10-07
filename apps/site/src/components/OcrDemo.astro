@@ -1,0 +1,208 @@
+---
+import { STYLES } from "../demo/captchas.ts";
+---
+
+<div id="ocr-demo" class="card w-full max-w-md min-w-0 bg-base-200 shadow-xl">
+  <div class="card-body gap-4 max-sm:p-4">
+    <div class="flex items-center justify-between gap-3">
+      <span class="font-semibold">یک کد امنیتی نمونه</span>
+      <select data-style class="select select-sm w-auto" aria-label="سبک درگاه">
+        <option value="">درگاه تصادفی</option>
+        {STYLES.map((style) => <option value={style.gateway}>{style.name}</option>)}
+      </select>
+    </div>
+
+    <figure class="flex min-h-36 min-w-0 flex-col items-center justify-center gap-2 rounded-box bg-base-100 p-3 sm:p-4">
+      <canvas data-captcha class="h-auto max-w-full rounded" role="img" aria-label="تصویر کد امنیتی"></canvas>
+      <figcaption data-caption class="text-xs opacity-60">&nbsp;</figcaption>
+    </figure>
+
+    <div class="flex items-center gap-3 sm:gap-4">
+      <div
+        data-accuracy
+        class="radial-progress shrink-0 bg-base-100 text-base-content/30 font-bold transition-colors [--size:4.75rem] [--thickness:0.45rem] sm:[--size:5.5rem]"
+        style="--value:0"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="دقت"
+      >
+        <span class="flex flex-col items-center leading-tight">
+          <span data-accuracy-value class="text-xl">–</span>
+          <span class="text-xs font-normal opacity-70">دقت</span>
+        </span>
+      </div>
+
+      <div class="flex min-w-0 flex-1 flex-col gap-2">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="w-16 shrink-0 whitespace-nowrap opacity-70 sm:w-20">خوانده شد</span>
+          <div data-read dir="ltr" class="flex gap-1 font-mono text-lg font-bold"></div>
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="w-16 shrink-0 whitespace-nowrap opacity-70 sm:w-20">جواب درست</span>
+          <div data-answer dir="ltr" class="flex gap-1 font-mono text-lg opacity-70"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="min-h-12 text-sm" aria-live="polite">
+      <p data-status>آماده‌سازی…</p>
+      <progress data-progress class="progress progress-primary mt-2 hidden w-full" max="1" value="0"></progress>
+      <p data-meta class="mt-1 text-xs opacity-60"></p>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <button data-regenerate class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path>
+        </svg>
+        کد تازه
+      </button>
+      <details data-processed-wrap class="text-xs">
+        <summary class="cursor-pointer opacity-70">موتور چه می‌بیند؟</summary>
+      </details>
+    </div>
+
+    <div data-processed-panel class="hidden rounded-box bg-base-100 p-3 text-center">
+      <canvas data-processed class="mx-auto h-auto max-h-16 max-w-full" role="img" aria-label="تصویر پیش‌پردازش‌شده"></canvas>
+      <p class="mt-2 text-xs opacity-60">موتور این تصویر را می‌خواند، یعنی همان کد بعد از پاک شدن رنگ و خط‌های مزاحم.</p>
+    </div>
+
+    <p data-tally class="border-t border-base-300 pt-3 text-xs opacity-70">&nbsp;</p>
+  </div>
+</div>
+
+<script>
+  import { renderCaptcha, STYLES, type CaptchaStyle } from "../demo/captchas.ts";
+  import type { Reading } from "../demo/engine.ts";
+  import { toFa } from "../fa.ts";
+
+  const root = document.querySelector<HTMLElement>("#ocr-demo")!;
+  const $ = <T extends Element>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
+  const captchaCanvas = $<HTMLCanvasElement>("captcha");
+  const processedCanvas = $<HTMLCanvasElement>("processed");
+  const styleSelect = $<HTMLSelectElement>("style");
+  const regenerate = $<HTMLButtonElement>("regenerate");
+  const accuracy = $<HTMLElement>("accuracy");
+  const accuracyValue = $<HTMLElement>("accuracy-value");
+  const status = $<HTMLElement>("status");
+  const progress = $<HTMLProgressElement>("progress");
+  const meta = $<HTMLElement>("meta");
+  const tally = $<HTMLElement>("tally");
+  const processedWrap = $<HTMLDetailsElement>("processed-wrap");
+  const processedPanel = $<HTMLElement>("processed-panel");
+
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+  type Engine = Awaited<ReturnType<typeof import("../demo/engine.ts").createEngine>>;
+  let engine: Promise<Engine> | undefined;
+  /** Bumped per captcha so a slow read never overwrites a newer one. */
+  let token = 0;
+  const totals = { read: 0, correct: 0 };
+
+  function digitBoxes(target: HTMLElement, text: string, answer?: string) {
+    target.replaceChildren(
+      ...Array.from({ length: 5 }, (_, i) => {
+        const box = document.createElement("span");
+        const char = text[i] ?? "";
+        box.textContent = char || "·";
+        box.className = "grid h-8 w-6 place-items-center rounded-field bg-base-100 sm:w-7";
+        if (answer !== undefined) {
+          box.classList.add(char && char === answer[i] ? "text-success" : "text-error");
+          if (!char) box.classList.add("opacity-50");
+        }
+        return box;
+      }),
+    );
+  }
+
+  function setAccuracy(percent: number | null) {
+    accuracy.style.setProperty("--value", String(percent ?? 0));
+    accuracy.setAttribute("aria-valuenow", String(percent ?? 0));
+    accuracy.classList.remove("text-success", "text-warning", "text-error", "text-base-content/30");
+    accuracy.classList.add(
+      percent === null ? "text-base-content/30" : percent === 100 ? "text-success" : percent >= 60 ? "text-warning" : "text-error",
+    );
+    accuracyValue.textContent = percent === null ? "–" : `${toFa(percent)}٪`;
+  }
+
+  function startEngine() {
+    if (engine) return engine;
+    progress.classList.remove("hidden");
+    status.textContent = "بارگیری موتور تشخیص متن (حدود ۱۵ مگابایت، فقط بار اول)…";
+    engine = import("../demo/engine.ts").then(({ createEngine }) =>
+      createEngine(base, (fraction) => (progress.value = fraction)),
+    );
+    engine.then(
+      () => progress.classList.add("hidden"),
+      () => {
+        engine = undefined;
+        progress.classList.add("hidden");
+        status.textContent = "موتور بارگیری نشد. اینترنت را بررسی کنید و دوباره «کد تازه» را بزنید.";
+      },
+    );
+    return engine;
+  }
+
+  function show(reading: Reading, answer: string) {
+    const matches = [...answer].filter((digit, i) => reading.text[i] === digit).length;
+    const percent = Math.round((matches / answer.length) * 100);
+    const correct = reading.text === answer;
+    totals.read++;
+    if (correct) totals.correct++;
+
+    digitBoxes($("read"), reading.text, answer);
+    setAccuracy(percent);
+    status.textContent = !reading.filled
+      ? "موتور از جوابش مطمئن نبود. افزونه در این حالت خانه را خالی می‌گذارد تا خودتان بنویسید."
+      : correct
+        ? "درست خواند. افزونه همین را در خانه‌ی کد امنیتی می‌نوشت."
+        : "اشتباه خواند، و افزونه همین جواب را می‌نوشت. برای همین پیش از ادامه نگاهی به آن بیندازید.";
+    meta.textContent = `${toFa(matches)} از ${toFa(answer.length)} رقم درست · اطمینان موتور ${toFa(Math.round(reading.confidence))}٪ · ${toFa(Math.round(reading.ms))} میلی‌ثانیه`;
+    tally.textContent = `تا این‌جا ${toFa(totals.correct)} از ${toFa(totals.read)} کد کامل درست خوانده شد (${toFa(Math.round((totals.correct / totals.read) * 100))}٪).`;
+
+    processedCanvas.width = reading.processed.width;
+    processedCanvas.height = reading.processed.height;
+    processedCanvas
+      .getContext("2d")!
+      .putImageData(new ImageData(new Uint8ClampedArray(reading.processed.data), reading.processed.width, reading.processed.height), 0, 0);
+  }
+
+  function draw(): { style: CaptchaStyle; answer: string } {
+    const style = STYLES.find((s) => s.gateway === styleSelect.value) ?? STYLES[Math.floor(Math.random() * STYLES.length)]!;
+    const answer = renderCaptcha(captchaCanvas, style);
+    captchaCanvas.style.width = `${Math.min(style.width * 2, 330)}px`;
+    $("caption").textContent = `به سبک درگاه ${style.name}`;
+    digitBoxes($("read"), "");
+    digitBoxes($("answer"), answer);
+    setAccuracy(null);
+    meta.textContent = "";
+    return { style, answer };
+  }
+
+  async function next() {
+    const { style, answer } = draw();
+    const mine = ++token;
+    try {
+      const ready = await startEngine();
+      if (mine !== token) return;
+      status.textContent = "در حال خواندن…";
+      const image = captchaCanvas.getContext("2d")!.getImageData(0, 0, style.width, style.height);
+      const reading = await ready.read(image, style.gateway);
+      if (mine === token) show(reading, answer);
+    } catch {
+      // startEngine already reported the failure.
+    }
+  }
+
+  processedWrap.addEventListener("toggle", () => processedPanel.classList.toggle("hidden", !processedWrap.open));
+  regenerate.addEventListener("click", () => void next());
+  styleSelect.addEventListener("change", () => void next());
+
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+  if (saveData) {
+    draw();
+    status.textContent = "برای امتحان «کد تازه» را بزنید. موتور تشخیص متن حدود ۱۵ مگابایت است.";
+  } else {
+    void next();
+  }
+</script>

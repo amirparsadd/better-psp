@@ -1,5 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
+import OcrDemo from "../components/OcrDemo.astro";
+import { toFa } from "../fa.ts";
 import { DOWNLOADS, RELEASES, REPO, VERSION } from "../links.ts";
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
@@ -32,7 +34,6 @@ const features = [
 ];
 
 const gateways = ["سامان", "ملت", "پارسیان", "پاسارگاد", "ایران‌کیش", "سداد (ملی)", "آسان پرداخت", "سپهر", "نوین"];
-const toFa = (text: string) => text.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]!);
 ---
 
 <Base
@@ -53,12 +54,16 @@ const toFa = (text: string) => text.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"
 
   <main>
     <section class="hero mx-auto max-w-5xl px-4 py-12 md:py-20">
-      <div class="hero-content w-full flex-col gap-12 p-0 lg:flex-row lg:justify-between">
+      <div class="hero-content w-full min-w-0 flex-col items-start gap-12 p-0 lg:flex-row lg:items-center lg:justify-between">
         <div class="max-w-xl">
-          <h1 class="text-4xl font-extrabold md:text-5xl">پرداخت در درگاه‌های شاپرک، راحت‌تر</h1>
+          <h1 class="text-4xl font-extrabold md:text-5xl">کد امنیتی درگاه را خودش می‌خواند</h1>
           <p class="mt-6 text-lg opacity-80">
-            <bdi>Better PSP</bdi> افزونه‌ای رایگان و متن‌باز برای کروم و فایرفاکس است که کارهای تکراری صفحه‌ی
-            پرداخت را از دوشتان برمی‌دارد. هیچ اطلاعاتی از دستگاه شما بیرون نمی‌رود.
+            <bdi>Better PSP</bdi> افزونه‌ای رایگان و متن‌باز برای کروم و فایرفاکس است. کد امنیتی صفحه‌ی پرداخت را
+            روی دستگاه خودتان می‌خواند و در خانه‌اش می‌نویسد. بقیه‌ی کارهای تکراری پرداخت را هم از دوشتان برمی‌دارد.
+          </p>
+          <p class="mt-4 opacity-80">
+            همین‌جا امتحانش کنید. هر بار که «کد تازه» را بزنید، کدی شبیه یکی از درگاه‌ها ساخته می‌شود و همان
+            موتوری که داخل افزونه است، در مرورگر خودتان آن را می‌خواند. تصویر به هیچ سروری نمی‌رود.
           </p>
           <div class="mt-8 flex flex-wrap gap-3">
             <a href="#install" class="btn btn-primary">نصب روی کروم</a>
@@ -67,34 +72,7 @@ const toFa = (text: string) => text.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"
           <p class="mt-4 text-sm opacity-60">نسخه‌ی <bdi>{VERSION}</bdi></p>
         </div>
 
-        <figure class="w-full max-w-sm" aria-hidden="true">
-          <div class="card bg-base-200 shadow-xl">
-            <div class="card-body gap-3">
-              <span class="text-sm opacity-70">شماره کارت</span>
-              <input class="input w-full text-left font-mono" dir="ltr" value="6037 9912 3456 7890" readonly tabindex="-1" />
-              <div class="grid grid-cols-3 gap-2">
-                <label class="flex flex-col gap-1">
-                  <span class="text-sm opacity-70">CVV2</span>
-                  <input class="input text-left" dir="ltr" value="•••" readonly tabindex="-1" />
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="text-sm opacity-70">ماه</span>
-                  <input class="input text-left" dir="ltr" value="05" readonly tabindex="-1" />
-                </label>
-                <label class="flex flex-col gap-1">
-                  <span class="text-sm opacity-70">سال</span>
-                  <input class="input text-left" dir="ltr" value="07" readonly tabindex="-1" />
-                </label>
-              </div>
-              <span class="badge badge-soft badge-primary gap-2 self-start py-3">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked disabled />
-                ذخیره‌ی CVV2 روی این دستگاه
-              </span>
-              <button class="btn btn-outline btn-primary mt-2 ring-4 ring-primary/30" tabindex="-1">دریافت رمز پویا</button>
-            </div>
-          </div>
-          <figcaption class="mt-3 text-center text-sm opacity-60">مکان‌نما بعد از کد امنیتی روی دکمه‌ی رمز پویا می‌رود</figcaption>
-        </figure>
+        <OcrDemo />
       </div>
     </section>
 

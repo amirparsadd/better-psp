@@ -215,12 +215,18 @@ importers:
 
   apps/site:
     dependencies:
+      '@better-psp/ocr':
+        specifier: workspace:*
+        version: link:../../packages/ocr
       '@fontsource-variable/vazirmatn':
         specifier: ^5.3.0
         version: 5.3.0
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+      '@tesseract.js-data/eng':
+        specifier: 1.0.0
+        version: 1.0.0
       astro:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@26.6.4)(idb-keyval@6.3.0)(jiti@2.7.0)(yaml@2.9.1)
@@ -230,6 +236,9 @@ importers:
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
+      tesseract.js:
+        specifier: 7.0.0
+        version: 7.0.0
 
   packages/ocr:
     devDependencies:
