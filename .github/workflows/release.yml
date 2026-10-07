@@ -1,0 +1,66 @@
+name: Release extension
+
+# Push a tag matching apps/extension/package.json, e.g. `git tag v0.1.0 && git push --tags`.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # Optional: AMO API credentials (https://addons.mozilla.org/developers/addon/api/key/). Without them the
+      # release has no Firefox .xpi, because release Firefox only installs Mozilla-signed add-ons.
+      AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+      AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+      OUT: apps/extension/.output
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the tag matches the extension version
+        run: |
+          version=$(node -p 'require("./apps/extension/package.json").version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match extension version $version"
+            exit 1
+          fi
+
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @better-psp/extension zip
+
+      - name: Sign the Firefox build (unlisted, self-distributed)
+        if: env.AMO_API_KEY != ''
+        run: |
+          pnpm dlx web-ext sign \
+            --channel unlisted \
+            --source-dir "$OUT/firefox-mv3" \
+            --upload-source-code "$OUT/better-psp-sources.zip" \
+            --artifacts-dir signed \
+            --api-key "$AMO_API_KEY" \
+            --api-secret "$AMO_API_SECRET"
+          mv signed/*.xpi "$OUT/better-psp-firefox.xpi"
+
+      - name: Warn about the missing Firefox build
+        if: env.AMO_API_KEY == ''
+        run: echo "::warning::AMO_API_KEY is not set; the release has no signed Firefox .xpi"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          gh release create "$GITHUB_REF_NAME" --generate-notes \
+            "$OUT/better-psp-chrome.zip" \
+            "$OUT/better-psp-firefox.zip" \
+            "$OUT/better-psp-sources.zip" \
+            "$OUT"/*.xpi

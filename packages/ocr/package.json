@@ -1,0 +1,24 @@
+{
+  "name": "@better-psp/ocr",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Captcha preprocessing and solving for Shaparak gateways. Browser-safe; Tesseract is injected by the caller.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "bench": "node scripts/benchmark.ts",
+    "tune": "node scripts/tune.ts",
+    "inspect": "node scripts/inspect.ts",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@types/node": "^26.6.4",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
+    "tesseract.js": "^7.0.0",
+    "typescript": "^7.0.2"
+  }
+}

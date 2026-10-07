@@ -1,0 +1,29 @@
+{
+  "name": "@better-psp/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Better PSP: a smoother checkout on Iranian payment gateways.",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "build": "wxt build && wxt build -b firefox --mv3",
+    "zip": "wxt zip && wxt zip -b firefox --mv3",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "test": "vitest run",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "wxt": "^0.21.4"
+  },
+  "dependencies": {
+    "@better-psp/ocr": "workspace:*",
+    "@tesseract.js-data/eng": "1.0.0",
+    "tesseract.js": "7.0.0"
+  }
+}

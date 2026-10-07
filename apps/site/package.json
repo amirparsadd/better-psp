@@ -1,0 +1,19 @@
+{
+  "name": "@better-psp/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Landing page for Better PSP, deployed to GitHub Pages.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/vazirmatn": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.6",
+    "daisyui": "^5.7.47",
+    "tailwindcss": "^4.3.3"
+  }
+}

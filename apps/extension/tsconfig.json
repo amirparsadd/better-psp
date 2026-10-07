@@ -1,0 +1,9 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    // @better-psp/ocr is imported as source and its pixel loops index typed arrays everywhere.
+    "noUncheckedIndexedAccess": false
+  }
+}

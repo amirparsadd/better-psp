@@ -1,0 +1,241 @@
+---
+import Base from "../layouts/Base.astro";
+import { DOWNLOADS, RELEASES, REPO, VERSION } from "../links.ts";
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+
+const features = [
+  {
+    title: "اعداد فارسی، بدون دردسر",
+    body: "با صفحه‌کلید فارسی هم که بنویسید، اعداد خودکار انگلیسی می‌شوند. خیلی از درگاه‌ها اعداد فارسی را بی‌صدا نادیده می‌گیرند. شماره‌ی کارتی را هم که کپی کرده‌اید، یک‌جا در هر چهار خانه می‌نشیند.",
+  },
+  {
+    title: "پرش خودکار بین فیلدها",
+    body: "وقتی شماره‌ی کارت، ماه، سال یا کد امنیتی کامل شد، مکان‌نما خودش به خانه‌ی بعدی می‌رود. بعد از کد امنیتی، دکمه‌ی دریافت رمز پویا آماده‌ی کلیک است. تأیید پرداخت همیشه با خود شماست.",
+  },
+  {
+    title: "CVV2 فقط روی دستگاه خودتان",
+    body: "زیر فیلد CVV2 یک گزینه‌ی ذخیره اضافه می‌شود. اگر تیکش را بزنید، CVV2 رمزنگاری‌شده در همین مرورگر می‌ماند و دفعه‌ی بعد خودش پر می‌شود. بدون تیک، هیچ چیزی ذخیره نمی‌شود.",
+  },
+  {
+    title: "پر کردن خودکار کد امنیتی",
+    body: "افزونه تصویر کد امنیتی را روی همین دستگاه می‌خواند و جوابش را در خانه‌ی مربوط می‌نویسد. اگر از جوابش مطمئن نباشد، خانه را خالی می‌گذارد. گاهی هم اشتباه می‌خواند، پس پیش از ادامه نگاهی به آن بیندازید.",
+  },
+  {
+    title: "صفحه‌ی خلوت",
+    body: "سربرگ، پانویس، راهنماها و نکته‌های امنیتیِ طولانیِ درگاه پنهان می‌شوند تا فقط فرم پرداخت بماند. نام پذیرنده، مبلغ، زمان باقی‌مانده و پیام‌های خطا همیشه دیده می‌شوند.",
+  },
+  {
+    title: "ایمیل و موبایل برای رسید",
+    body: "ایمیل و شماره‌ی موبایلتان را یک بار در افزونه وارد کنید. از آن به بعد، اگر درگاهی این خانه‌ها را داشته باشد و خالی باشند، خودکار پر می‌شوند.",
+  },
+];
+
+const gateways = ["سامان", "ملت", "پارسیان", "پاسارگاد", "ایران‌کیش", "سداد (ملی)", "آسان پرداخت", "سپهر", "نوین"];
+const toFa = (text: string) => text.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]!);
+---
+
+<Base
+  title="Better PSP | پرداخت راحت‌تر در درگاه‌های شاپرک"
+  description="افزونه‌ی رایگان و متن‌باز کروم و فایرفاکس برای پرداخت راحت‌تر در درگاه‌های بانکی شاپرک."
+>
+  <header class="navbar mx-auto max-w-5xl px-4">
+    <a href={base} class="flex flex-1 items-center gap-2 text-lg font-bold">
+      <img src={`${base}favicon.svg`} alt="" class="size-8" />
+      <span dir="ltr" class="whitespace-nowrap">Better PSP</span>
+    </a>
+    <nav class="flex gap-1">
+      <a href="#install" class="btn btn-ghost btn-sm">نصب</a>
+      <a href="#privacy" class="btn btn-ghost btn-sm max-sm:hidden">حریم خصوصی</a>
+      <a href={REPO} class="btn btn-ghost btn-sm" dir="ltr">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero mx-auto max-w-5xl px-4 py-12 md:py-20">
+      <div class="hero-content w-full flex-col gap-12 p-0 lg:flex-row lg:justify-between">
+        <div class="max-w-xl">
+          <h1 class="text-4xl font-extrabold md:text-5xl">پرداخت در درگاه‌های شاپرک، راحت‌تر</h1>
+          <p class="mt-6 text-lg opacity-80">
+            <bdi>Better PSP</bdi> افزونه‌ای رایگان و متن‌باز برای کروم و فایرفاکس است که کارهای تکراری صفحه‌ی
+            پرداخت را از دوشتان برمی‌دارد. هیچ اطلاعاتی از دستگاه شما بیرون نمی‌رود.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href="#install" class="btn btn-primary">نصب روی کروم</a>
+            <a href="#install-firefox" class="btn btn-primary btn-outline">نصب روی فایرفاکس</a>
+          </div>
+          <p class="mt-4 text-sm opacity-60">نسخه‌ی <bdi>{VERSION}</bdi></p>
+        </div>
+
+        <figure class="w-full max-w-sm" aria-hidden="true">
+          <div class="card bg-base-200 shadow-xl">
+            <div class="card-body gap-3">
+              <span class="text-sm opacity-70">شماره کارت</span>
+              <input class="input w-full text-left font-mono" dir="ltr" value="6037 9912 3456 7890" readonly tabindex="-1" />
+              <div class="grid grid-cols-3 gap-2">
+                <label class="flex flex-col gap-1">
+                  <span class="text-sm opacity-70">CVV2</span>
+                  <input class="input text-left" dir="ltr" value="•••" readonly tabindex="-1" />
+                </label>
+                <label class="flex flex-col gap-1">
+                  <span class="text-sm opacity-70">ماه</span>
+                  <input class="input text-left" dir="ltr" value="05" readonly tabindex="-1" />
+                </label>
+                <label class="flex flex-col gap-1">
+                  <span class="text-sm opacity-70">سال</span>
+                  <input class="input text-left" dir="ltr" value="07" readonly tabindex="-1" />
+                </label>
+              </div>
+              <span class="badge badge-soft badge-primary gap-2 self-start py-3">
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked disabled />
+                ذخیره‌ی CVV2 روی این دستگاه
+              </span>
+              <button class="btn btn-outline btn-primary mt-2 ring-4 ring-primary/30" tabindex="-1">دریافت رمز پویا</button>
+            </div>
+          </div>
+          <figcaption class="mt-3 text-center text-sm opacity-60">مکان‌نما بعد از کد امنیتی روی دکمه‌ی رمز پویا می‌رود</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="bg-base-200 py-16">
+      <div class="mx-auto max-w-5xl px-4">
+        <h2 class="text-3xl font-bold">چه کار می‌کند؟</h2>
+        <div class="mt-8 grid gap-6 md:grid-cols-3">
+          {
+            features.map((feature) => (
+              <article class="card bg-base-100 shadow-sm">
+                <div class="card-body">
+                  <h3 class="card-title text-xl">{feature.title}</h3>
+                  <p class="opacity-80">{feature.body}</p>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+
+        <div class="mt-10">
+          <p class="font-semibold">فیلدهای این درگاه‌ها را می‌شناسد:</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {gateways.map((name) => <span class="badge badge-outline badge-lg">{name}</span>)}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-5xl px-4 py-16">
+      <div class="alert alert-info alert-soft items-start">
+        <div>
+          <h2 class="text-lg font-bold">چرا افزونه کد امنیتی را پر می‌کند؟</h2>
+          <p class="mt-2">
+            کد امنیتیِ عددیِ درگاه‌ها را یک برنامه‌ی ساده‌ی تشخیص متن هم می‌خواند؛ همان کاری که این افزونه روی
+            دستگاه شما انجام می‌دهد. یعنی این کد جلوی ربات‌ها را نمی‌گیرد و فقط پرداخت را برای آدم‌ها کندتر می‌کند.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" class="bg-base-200 py-16 scroll-mt-4">
+      <div class="mx-auto max-w-3xl px-4">
+        <h2 class="text-3xl font-bold">نصب</h2>
+        <p class="mt-3 opacity-80">
+          افزونه هنوز در فروشگاه کروم نیست. فایل‌ها را از{" "}
+          <a class="link link-primary" href={RELEASES}>صفحه‌ی نسخه‌ها در گیت‌هاب</a>{" "}
+          دریافت کنید؛ همان فایل‌هایی که از روی کد همین مخزن ساخته شده‌اند.
+        </p>
+
+        <div role="tablist" class="tabs tabs-box mt-8 bg-base-100">
+          <input type="radio" name="install" role="tab" class="tab" aria-label="کروم و اج" checked />
+          <div role="tabpanel" class="tab-content p-6">
+            <ul class="steps steps-vertical">
+              <li class="step step-primary" data-content="۱">
+                <span class="text-start">
+                  فایل افزونه را دانلود کنید و از حالت فشرده بیرون بیاورید.
+                  <a href={DOWNLOADS.chrome} class="btn btn-primary btn-sm ms-2">دانلود برای کروم</a>
+                </span>
+              </li>
+              <li class="step step-primary" data-content="۲">
+                <span class="text-start">
+                  نشانی <code dir="ltr" class="kbd kbd-sm">chrome://extensions</code> را در نوار آدرس باز کنید. در اج:{" "}
+                  <code dir="ltr" class="kbd kbd-sm">edge://extensions</code>
+                </span>
+              </li>
+              <li class="step step-primary" data-content="۳">
+                <span class="text-start">گزینه‌ی <bdi>Developer mode</bdi> را روشن کنید.</span>
+              </li>
+              <li class="step step-primary" data-content="۴">
+                <span class="text-start">
+                  روی <bdi>Load unpacked</bdi> بزنید و پوشه‌ای را که از فایل فشرده بیرون آمده انتخاب کنید.
+                </span>
+              </li>
+            </ul>
+            <p class="mt-4 text-sm opacity-70">
+              کروم افزونه‌هایی را که از فروشگاه نصب نشده‌اند خودکار به‌روز نمی‌کند. برای نسخه‌ی جدید، فایل تازه را جایگزین
+              همان پوشه کنید و در صفحه‌ی افزونه‌ها دکمه‌ی بارگذاری دوباره را بزنید.
+            </p>
+          </div>
+
+          <input
+            type="radio"
+            name="install"
+            role="tab"
+            class="tab"
+            aria-label="فایرفاکس"
+            id="install-firefox"
+          />
+          <div role="tabpanel" class="tab-content p-6">
+            <ul class="steps steps-vertical">
+              <li class="step step-primary" data-content="۱">
+                <span class="text-start">
+                  این صفحه را با فایرفاکس باز کنید و روی دکمه بزنید.
+                  <a href={DOWNLOADS.firefox} class="btn btn-primary btn-sm ms-2">نصب روی فایرفاکس</a>
+                </span>
+              </li>
+              <li class="step step-primary" data-content="۲">
+                <span class="text-start">فایرفاکس اجازه‌ی نصب می‌خواهد؛ گزینه‌ی افزودن را بزنید.</span>
+              </li>
+            </ul>
+            <p class="mt-4 text-sm opacity-70">
+              این فایل را موزیلا امضا کرده است و به فایرفاکس {toFa("140")} یا جدیدتر نیاز دارد.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="mx-auto max-w-3xl px-4 py-16 scroll-mt-4">
+      <h2 class="text-3xl font-bold">حریم خصوصی</h2>
+      <ul class="mt-6 list-disc space-y-3 ps-6">
+        <li>افزونه فقط روی صفحه‌های <bdi dir="ltr">*.shaparak.ir</bdi> اجرا می‌شود و به هیچ سایت دیگری دسترسی ندارد.</li>
+        <li>هیچ داده‌ای به هیچ سروری فرستاده نمی‌شود. آمار و ردیاب هم در کار نیست.</li>
+        <li>کد امنیتی روی همین دستگاه و بدون اینترنت خوانده می‌شود و تصویرش به هیچ سرویسی نمی‌رود.</li>
+        <li>
+          CVV2 فقط با اجازه‌ی شما ذخیره می‌شود و با کلیدی رمزنگاری می‌شود که از مرورگر بیرون نمی‌آید. شماره‌ی کامل کارت
+          هیچ‌جا ذخیره نمی‌شود.
+        </li>
+        <li>
+          این رمزنگاری جلوی کسی را که فایل‌های مرورگر را باز کند می‌گیرد، اما در برابر بدافزاری که روی خود سیستم اجرا
+          شود کاری از دستش برنمی‌آید.
+        </li>
+        <li>کد کامل افزونه در <a class="link link-primary" href={REPO}>گیت‌هاب</a> است و هر کسی می‌تواند آن را بررسی کند.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer footer-center bg-base-200 p-8 text-sm">
+    <p>
+      <bdi>Better PSP</bdi> پروژه‌ای متن‌باز است و ربطی به شاپرک یا بانک‌ها ندارد.{" "}
+      <a class="link" href={`${REPO}/issues`}>گزارش مشکل</a>
+    </p>
+  </footer>
+</Base>
+
+<script>
+  const firefoxTab = document.querySelector<HTMLInputElement>("#install-firefox")!;
+  const showFirefox = () => {
+    firefoxTab.checked = true;
+    if (location.hash === "#install-firefox") document.querySelector("#install")!.scrollIntoView();
+  };
+  if (navigator.userAgent.includes("Firefox") || location.hash === "#install-firefox") showFirefox();
+  addEventListener("hashchange", () => location.hash === "#install-firefox" && showFirefox());
+</script>

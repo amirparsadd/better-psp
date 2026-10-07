@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  # Only prints an Open Collective banner.
+  tesseract.js: false

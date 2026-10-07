@@ -1,0 +1,15 @@
+{
+  "name": "@better-psp/collector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local GUI for collecting labeled captcha samples and page snapshots.",
+  "scripts": {
+    "start": "node server.ts",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

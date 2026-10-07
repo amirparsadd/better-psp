@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Captcha collector</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1d2129;
+      --border: #2a303c;
+      --text: #e6e8ee;
+      --muted: #8b93a7;
+      --accent: #4f8cff;
+      --ok: #3ecf8e;
+      --warn: #f5a524;
+      --err: #ff5c5c;
+      --radius: 10px;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 20px;
+      padding: 14px 24px;
+      background: rgba(15, 17, 21, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+    #stats { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 2px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .chip b { color: var(--text); font-weight: 600; }
+    .chip.active { border-color: var(--accent); color: var(--text); }
+    main { max-width: 880px; margin: 0 auto; padding: 24px; display: grid; gap: 18px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+    h2 .step { color: var(--accent); margin-right: 6px; }
+    h3 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    input, textarea, button { font: inherit; color: inherit; }
+    input[type="text"], input[type="url"], input[type="number"], textarea {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    input[type="number"] { width: 160px; }
+    textarea { min-height: 120px; resize: vertical; font: 12.5px/1.45 ui-monospace, Menlo, monospace; }
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { border-color: var(--muted); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    button.ghost { background: transparent; }
+    button.small { padding: 3px 10px; font-size: 13px; }
+    label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .warning {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--warn);
+      border-radius: 8px;
+      color: var(--warn);
+      font-size: 13.5px;
+    }
+    #link-out { margin-top: 12px; padding: 10px 12px; background: var(--panel-2); border-radius: 8px; }
+    #link { color: var(--accent); word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+    #gateway-badge { margin-top: 10px; font-size: 14px; color: var(--muted); }
+    #gateway-badge b { color: var(--ok); font-size: 15px; }
+    #gateway-badge.invalid { color: var(--err); }
+    #html-status { color: var(--muted); font-size: 13px; }
+    #dropzone {
+      display: grid;
+      place-items: center;
+      gap: 8px;
+      padding: 22px;
+      text-align: center;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+    }
+    #dropzone.over { border-color: var(--accent); color: var(--text); background: rgba(79, 140, 255, 0.06); }
+    kbd {
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      font: 12px ui-monospace, Menlo, monospace;
+      color: var(--text);
+    }
+    #queue { display: grid; gap: 12px; margin-top: 14px; }
+    #queue:empty { display: none; }
+    .card {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .card:focus-within { border-color: var(--accent); }
+    .card.busy { opacity: 0.5; pointer-events: none; }
+    .card img {
+      height: 90px;
+      max-width: 100%;
+      image-rendering: pixelated;
+      background: #fff;
+      border-radius: 6px;
+    }
+    .card-body { flex: 1; min-width: 220px; display: grid; gap: 8px; }
+    .card .label { font: 600 22px ui-monospace, Menlo, monospace; letter-spacing: 0.15em; }
+    .meta { color: var(--muted); font-size: 12.5px; }
+    #recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    #recent li { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 8px; }
+    #recent li:hover { background: var(--panel-2); }
+    #recent img { height: 32px; image-rendering: pixelated; background: #fff; border-radius: 4px; }
+    #recent code { font-size: 15px; min-width: 80px; }
+    #recent .muted { color: var(--muted); font-size: 13px; flex: 1; }
+    #recent:empty::after { content: "Nothing saved yet."; color: var(--muted); font-size: 13.5px; }
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translate(-50%, 20px);
+      max-width: min(640px, calc(100vw - 32px));
+      padding: 10px 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    #toast[data-kind="ok"] { border-color: var(--ok); }
+    #toast[data-kind="error"] { border-color: var(--err); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Captcha collector</h1>
+    <div id="stats"></div>
+  </header>
+
+  <main>
+    <section>
+      <h2><span class="step">1</span>Payment link</h2>
+      <div id="merchant-warning" class="warning" hidden>
+        <code>ZARINPAL_MERCHANT_ID</code> is not set. Copy <code>.env.example</code> to <code>.env</code>, fill it in and restart the server.
+      </div>
+      <div class="row">
+        <label class="inline">Amount (rials) <input id="amount" type="number" min="1" step="1"></label>
+        <button id="new-link" class="primary">New payment link</button>
+      </div>
+      <div id="link-out" hidden>
+        <div class="row">
+          <a id="link" target="_blank" rel="noreferrer"></a>
+          <button id="copy-link" class="small">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="step">2</span>Gateway page URL</h2>
+      <p class="hint">Open the link, and once you reach the page with the card form and captcha, copy its URL from the address bar and paste it here.</p>
+      <input id="page-url" type="url" placeholder="https://sep.shaparak.ir/..." autocomplete="off" spellcheck="false" dir="ltr">
+      <div id="gateway-badge"></div>
+    </section>
+
+    <section>
+      <h2><span class="step">3</span>Page HTML</h2>
+      <p class="hint">Once per gateway session. Best: DevTools (<kbd>⌥⌘I</kbd>), right-click the <code>&lt;html&gt;</code> element, Copy &rarr; Copy outerHTML, so JS-rendered parts are included. Or view-source (<kbd>⌥⌘U</kbd>), or drop / pick a saved <code>.html</code> file.</p>
+      <textarea id="html" placeholder="<!doctype html> ..." spellcheck="false" dir="ltr"></textarea>
+      <div class="row" style="margin-top: 10px">
+        <button id="save-html" class="primary">Save HTML</button>
+        <input id="html-file" type="file" accept=".html,.htm,text/html">
+        <span id="html-status"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="step">4</span>Captchas</h2>
+      <div id="dropzone">
+        <div>On the gateway, right-click the captcha, choose <b>Copy Image</b>, then press <kbd>⌘V</kbd> anywhere on this page.</div>
+        <div>Then refresh the captcha on the gateway and repeat; every refresh is a new sample.</div>
+        <div>Label from the preview below, not from the gateway tab.</div>
+        <input id="captcha-files" type="file" accept="image/*" multiple>
+      </div>
+      <div id="queue"></div>
+      <h3>Recently saved</h3>
+      <ul id="recent"></ul>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script type="module">
+    const $ = (selector) => document.querySelector(selector);
+
+    const state = {
+      authority: localStorage.getItem("authority"),
+      pageUrl: localStorage.getItem("pageUrl") ?? "",
+      gateway: null,
+      stats: { total: 0, byGateway: {} },
+    };
+
+    async function api(path, body) {
+      const init = body === undefined
+        ? {}
+        : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+      const res = await fetch(path, init);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(data.error ?? res.statusText), { status: res.status });
+      return data;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    }
+
+    function normalizeLabel(raw) {
+      return raw
+        .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+        .replace(/\s+/g, "");
+    }
+
+    let toastTimer;
+    function toast(message, kind = "info") {
+      const el = $("#toast");
+      el.textContent = message;
+      el.dataset.kind = kind;
+      el.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
+    }
+
+    function requireGateway() {
+      if (state.gateway) return true;
+      toast("Paste the gateway page URL first (step 2).", "error");
+      $("#page-url").focus();
+      return false;
+    }
+
+    function renderStats() {
+      const { total, byGateway } = state.stats;
+      const chips = Object.entries(byGateway)
+        .sort((a, b) => b[1] - a[1])
+        .map(([gateway, count]) =>
+          `<span class="chip${gateway === state.gateway ? " active" : ""}">${escapeHtml(gateway)} <b>${count}</b></span>`)
+        .join("");
+      $("#stats").innerHTML = `<span class="chip">total <b>${total}</b></span>${chips}`;
+    }
+
+    async function refreshStats() {
+      state.stats = await api("/api/stats");
+      renderStats();
+    }
+
+    // Step 1: payment link
+
+    function renderLink(url) {
+      $("#link").href = url;
+      $("#link").textContent = url;
+      $("#link-out").hidden = false;
+    }
+
+    $("#new-link").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const { url, authority } = await api("/api/link", { amount: Number($("#amount").value) });
+        state.authority = authority;
+        localStorage.setItem("authority", authority);
+        localStorage.setItem("link", url);
+        renderLink(url);
+        setPageUrl("");
+        toast("Link created. Open it, then paste the card page URL in step 2.", "ok");
+      } catch (err) {
+        toast(err.message, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $("#copy-link").addEventListener("click", async () => {
+      await navigator.clipboard.writeText($("#link").href);
+      toast("Link copied.", "ok");
+    });
+
+    // Step 2: gateway detection
+
+    let detectSeq = 0;
+    async function detect() {
+      const pageUrl = $("#page-url").value.trim();
+      state.pageUrl = pageUrl;
+      localStorage.setItem("pageUrl", pageUrl);
+      const seq = ++detectSeq;
+      const badge = $("#gateway-badge");
+
+      if (!pageUrl) {
+        state.gateway = null;
+        badge.className = "";
+        badge.textContent = "";
+        renderStats();
+        return;
+      }
+      try {
+        const { gateway, host } = await api("/api/detect", { pageUrl });
+        if (seq !== detectSeq) return;
+        state.gateway = gateway;
+        badge.className = "";
+        badge.innerHTML = `Gateway: <b>${escapeHtml(gateway)}</b> <span>(${escapeHtml(host)})</span>`;
+      } catch (err) {
+        if (seq !== detectSeq) return;
+        state.gateway = null;
+        badge.className = "invalid";
+        badge.textContent = err.message;
+      }
+      renderStats();
+    }
+
+    function setPageUrl(value) {
+      $("#page-url").value = value;
+      detect();
+      if (!value) $("#page-url").focus();
+    }
+
+    let detectTimer;
+    $("#page-url").addEventListener("input", () => {
+      clearTimeout(detectTimer);
+      detectTimer = setTimeout(detect, 200);
+    });
+
+    // Step 3: page HTML
+
+    async function loadHtmlFile(file) {
+      $("#html").value = await file.text();
+    }
+
+    $("#html-file").addEventListener("change", async (event) => {
+      const [file] = event.target.files;
+      if (file) await loadHtmlFile(file);
+      event.target.value = "";
+    });
+
+    $("#html").addEventListener("drop", async (event) => {
+      const [file] = event.dataTransfer.files;
+      if (!file) return;
+      event.preventDefault();
+      event.stopPropagation();
+      await loadHtmlFile(file);
+    });
+
+    $("#save-html").addEventListener("click", async () => {
+      if (!requireGateway()) return;
+      try {
+        const { file } = await api("/api/html", {
+          pageUrl: state.pageUrl,
+          authority: state.authority,
+          html: $("#html").value,
+        });
+        $("#html").value = "";
+        $("#html-status").textContent = `Saved ${file}`;
+        toast("HTML saved.", "ok");
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    });
+
+    // Step 4: captchas
+
+    function enqueue(file) {
+      const reader = new FileReader();
+      reader.onload = () => addCard(reader.result);
+      reader.readAsDataURL(file);
+    }
+
+    function focusNextCard() {
+      $("#queue .label")?.focus();
+    }
+
+    function addCard(dataUrl) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <img alt="captcha">
+        <div class="card-body">
+          <input class="label" type="text" placeholder="Type what you see" autocomplete="off" spellcheck="false" inputmode="numeric" dir="ltr">
+          <div class="row">
+            <button class="primary save">Save <kbd>⏎</kbd></button>
+            <button class="ghost discard">Discard <kbd>esc</kbd></button>
+            <span class="meta"></span>
+          </div>
+        </div>`;
+
+      const img = card.querySelector("img");
+      const input = card.querySelector(".label");
+      img.src = dataUrl;
+      img.onload = () => {
+        card.querySelector(".meta").textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+      };
+
+      function remove() {
+        card.remove();
+        focusNextCard();
+      }
+
+      async function save() {
+        if (card.classList.contains("busy") || !requireGateway()) return;
+        const label = normalizeLabel(input.value);
+        if (!label) {
+          toast("Type the captcha first.", "error");
+          input.focus();
+          return;
+        }
+        card.classList.add("busy");
+        try {
+          const entry = await api("/api/captcha", {
+            pageUrl: state.pageUrl,
+            authority: state.authority,
+            label,
+            image: dataUrl,
+            width: img.naturalWidth || null,
+            height: img.naturalHeight || null,
+          });
+          remove();
+          prependRecent(entry);
+          refreshStats();
+          toast(`Saved "${entry.label}" to ${entry.gateway}. Refresh the captcha, copy, paste.`, "ok");
+        } catch (err) {
+          card.classList.remove("busy");
+          if (err.status === 409) remove();
+          else input.focus();
+          toast(err.message, "error");
+        }
+      }
+
+      input.addEventListener("input", () => {
+        const normalized = normalizeLabel(input.value);
+        if (normalized !== input.value) input.value = normalized;
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          save();
+        } else if (event.key === "Escape") {
+          remove();
+        }
+      });
+      card.querySelector(".save").addEventListener("click", save);
+      card.querySelector(".discard").addEventListener("click", remove);
+
+      $("#queue").append(card);
+      if (!document.activeElement?.classList.contains("label")) input.focus();
+    }
+
+    document.addEventListener("paste", (event) => {
+      const images = [...(event.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+      if (images.length === 0) return;
+      event.preventDefault();
+      images.forEach(enqueue);
+    });
+
+    const dropzone = $("#dropzone");
+    window.addEventListener("dragover", (event) => event.preventDefault());
+    window.addEventListener("drop", (event) => event.preventDefault());
+    dropzone.addEventListener("dragover", () => dropzone.classList.add("over"));
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("over"));
+    dropzone.addEventListener("drop", (event) => {
+      dropzone.classList.remove("over");
+      const images = [...event.dataTransfer.files].filter((f) => f.type.startsWith("image/"));
+      if (images.length === 0) {
+        toast("Dragging from the gateway tab only gives the image URL. Use Copy Image and ⌘V instead.", "error");
+        return;
+      }
+      images.forEach(enqueue);
+    });
+    $("#captcha-files").addEventListener("change", (event) => {
+      [...event.target.files].forEach(enqueue);
+      event.target.value = "";
+    });
+
+    // Recently saved
+
+    function recentItem(entry) {
+      const li = document.createElement("li");
+      const src = "/datasets/" + entry.file.split("/").map(encodeURIComponent).join("/");
+      li.innerHTML = `
+        <img src="${src}" alt="">
+        <code>${escapeHtml(entry.label)}</code>
+        <span class="muted">${escapeHtml(entry.gateway)}</span>
+        <button class="ghost small">Delete</button>`;
+      li.querySelector("button").addEventListener("click", async () => {
+        try {
+          await api("/api/captcha/delete", { file: entry.file });
+          li.remove();
+          refreshStats();
+          toast("Sample deleted.", "ok");
+        } catch (err) {
+          toast(err.message, "error");
+        }
+      });
+      return li;
+    }
+
+    function prependRecent(entry) {
+      const list = $("#recent");
+      list.prepend(recentItem(entry));
+      while (list.children.length > 20) list.lastElementChild.remove();
+    }
+
+    // Init
+
+    const config = await api("/api/config");
+    $("#amount").value = config.defaultAmount;
+    if (!config.merchantConfigured) {
+      $("#merchant-warning").hidden = false;
+      $("#new-link").disabled = true;
+    }
+    const savedLink = localStorage.getItem("link");
+    if (savedLink) renderLink(savedLink);
+    $("#page-url").value = state.pageUrl;
+    detect();
+    for (const entry of await api("/api/recent")) $("#recent").append(recentItem(entry));
+    refreshStats();
+  </script>
+</body>
+</html>

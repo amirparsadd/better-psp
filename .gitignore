@@ -1,0 +1,13 @@
+node_modules/
+.env
+.DS_Store
+bench-results/
+.turbo/
+.output/
+.wxt/
+dist/
+coverage/
+
+# Raw page snapshots may contain session tokens and merchant details; review before publishing
+datasets/*/pages/
+.astro/

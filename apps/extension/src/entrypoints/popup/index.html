@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Better PSP</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Better PSP</h1>
+      <p>پرداخت راحت‌تر در درگاه‌های شاپرک</p>
+    </header>
+
+    <section>
+      <h2>قابلیت‌ها</h2>
+      <label class="toggle">
+        <input type="checkbox" name="captcha" />
+        <span>
+          <strong>پر کردن خودکار کد امنیتی</strong>
+          <small>عدد تصویر کد امنیتی روی همین دستگاه خوانده و در فیلد نوشته می‌شود. اگر مطمئن نباشد، فیلد را خالی می‌گذارد.</small>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="digits" />
+        <span>
+          <strong>تبدیل اعداد فارسی به انگلیسی</strong>
+          <small>اعدادی که با صفحه‌کلید فارسی تایپ یا جای‌گذاری می‌کنید، خودکار انگلیسی می‌شوند.</small>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="focus" />
+        <span>
+          <strong>پرش خودکار بین فیلدها</strong>
+          <small>وقتی شماره‌ی کارت، تاریخ انقضا یا کد امنیتی کامل شد، مکان‌نما به فیلد بعدی می‌رود. CVV2 چهاررقمی هم وسط کار قطع نمی‌شود.</small>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="cvv" />
+        <span>
+          <strong>ذخیره‌ی CVV2</strong>
+          <small>اگر بخواهید، CVV2 هر کارت به‌صورت رمزنگاری‌شده روی همین دستگاه می‌ماند و دفعه‌ی بعد خودکار پر می‌شود.</small>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="contact" />
+        <span>
+          <strong>پر کردن ایمیل و موبایل</strong>
+          <small>فیلدهای اختیاری ایمیل و شماره‌ی موبایل درگاه با اطلاعات زیر پر می‌شوند.</small>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="clean" />
+        <span>
+          <strong>صفحه‌ی خلوت</strong>
+          <small>سربرگ، پانویس، راهنماها و توضیح زیر فیلدها پنهان می‌شوند. نام پذیرنده، مبلغ و زمان باقی‌مانده سر جایشان می‌مانند.</small>
+        </span>
+      </label>
+    </section>
+
+    <section>
+      <h2>ایمیل و موبایل برای رسید</h2>
+      <form id="contact" novalidate>
+        <label class="field">
+          <span>ایمیل</span>
+          <input name="email" type="email" dir="ltr" autocomplete="email" placeholder="name@example.com" />
+        </label>
+        <label class="field">
+          <span>موبایل</span>
+          <input name="mobile" type="tel" dir="ltr" autocomplete="tel" inputmode="numeric" placeholder="09123456789" />
+        </label>
+        <small id="contact-status" class="muted" aria-live="polite"></small>
+      </form>
+    </section>
+
+    <section>
+      <h2>کارت‌های ذخیره‌شده</h2>
+      <ul id="cards"></ul>
+      <p id="empty" class="muted" hidden>هنوز CVV2 هیچ کارتی ذخیره نشده است.</p>
+    </section>
+
+    <footer class="muted">همه‌چیز فقط روی همین دستگاه می‌ماند و به هیچ سروری فرستاده نمی‌شود.</footer>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "better-psp",
+  "private": true,
+  "type": "module",
+  "description": "Better UX for Iranian payment gateways (PSPs).",
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "pnpm --filter @better-psp/extension dev",
+    "dev:firefox": "pnpm --filter @better-psp/extension dev:firefox",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "zip": "turbo run zip",
+    "site": "pnpm --filter @better-psp/site dev",
+    "collect": "pnpm --filter @better-psp/collector start",
+    "bench": "pnpm --filter @better-psp/ocr bench",
+    "tune": "pnpm --filter @better-psp/ocr tune",
+    "inspect": "pnpm --filter @better-psp/ocr inspect"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.7",
+    "typescript": "^7.0.2"
+  }
+}
