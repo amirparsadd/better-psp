@@ -127,3 +127,7 @@ pnpm bench -g novin,sadad      # only some gateways
 pnpm inspect novin <file>      # write every intermediate image to bench-results/_inspect
 pnpm tune -g saman             # grid search over generic pipelines
 ```
+
+## License
+
+[MIT](LICENSE)

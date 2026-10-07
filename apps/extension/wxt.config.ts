@@ -38,6 +38,7 @@ export default defineConfig({
       "turbo.json",
       "tsconfig.base.json",
       "README.md",
+      "LICENSE",
     ],
   },
   hooks: {

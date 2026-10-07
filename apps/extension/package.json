@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Better PSP: a smoother checkout on Iranian payment gateways.",
+  "license": "MIT",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox --mv3",
