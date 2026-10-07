@@ -19,6 +19,16 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    {
+      import.meta.env.PROD && (
+        <script
+          is:inline
+          defer
+          src="https://nexus.figfit.ir/script.js"
+          data-website-id="79513732-85cc-4c90-9f50-31d9248cb577"
+        />
+      )
+    }
   </head>
   <body class="bg-base-100 text-base-content antialiased">
     <slot />
