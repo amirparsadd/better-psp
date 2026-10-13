@@ -31,7 +31,10 @@
   };
   const captcha = () => named() ?? besideInput();
 
+  // A badge left by an earlier run that disconnected.
+  document.getElementById("better-psp-collector")?.remove();
   const badge = document.createElement("div");
+  badge.id = "better-psp-collector";
   badge.style.cssText =
     "position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:8px 12px;border-radius:8px;background:#1d2129;color:#e6e8ee;font:13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3)";
   document.body.append(badge);
@@ -74,9 +77,18 @@
   async function post(path, body) {
     const payload = { session, pageUrl, ...body };
     if (relay) {
+      if (relay.closed) throw new Error("the relay window was closed");
       const id = ++lastId;
-      const reply = await new Promise((resolve) => {
-        replies.set(id, resolve);
+      // A closed or reloaded relay window never answers; waits come back within 20 s otherwise.
+      const reply = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          replies.delete(id);
+          reject(new Error(relay.closed ? "the relay window was closed" : "the relay window stopped answering"));
+        }, 30000);
+        replies.set(id, (data) => {
+          clearTimeout(timer);
+          resolve(data);
+        });
         relay.postMessage({ betterPsp: "request", id, path, body: payload }, COLLECTOR);
       });
       if (!reply.ok) throw new Error(reply.body?.error ?? "relay request failed");
@@ -160,7 +172,11 @@
       refresh();
       shot = await snapshot(last);
     }
-    if (!shot) return status("could not get a new captcha; refresh it by hand");
+    // Keep watching: a captcha refreshed by hand is sent as soon as it shows up.
+    while (!shot) {
+      status("could not get a new captcha; refresh it by hand");
+      shot = await snapshot(last);
+    }
     last = shot.sum;
     await post("/api/live/push", { image: shot.image, width: shot.width, height: shot.height });
     status(`connected, ${++sent} sent`);
@@ -177,5 +193,8 @@
         await send();
       }
     }
-  })().catch((err) => status(`disconnected (${err.message}); click the bookmarklet again`));
+  })().catch((err) => {
+    status(`disconnected (${err.message}); click the bookmarklet again`);
+    delete window.__betterPspCollector;
+  });
 })();

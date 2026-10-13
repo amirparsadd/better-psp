@@ -4,9 +4,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { INPUT_SIZE, createLogits, toClassifierInput } from "../src/classify.ts";
 import { configFor } from "../src/gateways.ts";
-import { fromGray } from "../src/image.ts";
+import { fromGray, pipeline, type RgbaImage } from "../src/image.ts";
 import { DIGIT_MODEL } from "../src/model/digits.ts";
-import { solveCaptcha, type Recognize } from "../src/solve.ts";
+import { segmentDigits } from "../src/segment.ts";
+import { defaultClassifier, solveCaptcha, type Recognize } from "../src/solve.ts";
 import { DATASET_DIR, decodePng, loadSamples } from "../scripts/node.ts";
 
 /** A white image with black rectangles at [x, y, width, height]. */
@@ -56,13 +57,24 @@ test("toClassifierInput returns null for an image without ink", () => {
   assert.equal(toClassifierInput(drawRects(10, 10, [])), null);
 });
 
-test("classifier gateways never call Tesseract when the captcha segments", async () => {
-  const neverCalled: Recognize = async () => assert.fail("Tesseract was called");
+test("classifier gateways call Tesseract only for captchas that cannot be cut into digits", async () => {
+  const classify = defaultClassifier();
+  const score = (digit: RgbaImage) => classify(digit)?.probability ?? 0;
   for (const { gateway, file } of await loadSamples()) {
     const config = configFor(gateway);
     if (config.read !== "classifier") continue;
     const image = decodePng(await readFile(join(DATASET_DIR, file)));
-    const { text } = await solveCaptcha(image, config, neverCalled);
-    assert.match(text, /^\d{5}$/, file);
+    let called = false;
+    const recognize: Recognize = async () => {
+      called = true;
+      return { text: "", confidence: 0, symbols: [] };
+    };
+    const { text } = await solveCaptcha(image, config, recognize, classify);
+    if (!called) {
+      assert.match(text, new RegExp(`^\\d{${config.length}}$`), file);
+      continue;
+    }
+    const digits = segmentDigits(pipeline(config.steps)(image), config.length, config.segment ?? {}, score);
+    assert.equal(digits, null, `${file}: Tesseract was called although the captcha can be cut into digits`);
   }
 });

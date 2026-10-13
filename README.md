@@ -96,8 +96,8 @@ Live mode (the fast way):
 
 Several gateway tabs can be connected at once; their captchas arrive in one stream. Chromium browsers ask once per
 gateway to allow access to the local network. Gateways whose security policy blocks other addresses (Asan Pardakht)
-send through a small relay window instead, so allow popups there. Clicking the bookmark again on the same page does
-nothing; reload the page to start over.
+send through a small relay window instead, so allow popups there. After a disconnect, click the bookmark again to
+reconnect.
 
 Without the bookmark: right-click the captcha, **Copy Image**, press Cmd+V in the collector, paste the page URL in
 step 2, then type the label. Always label from the preview in the collector. "Save Image As" may re-download the
@@ -190,7 +190,9 @@ cd ../../.. && pnpm bench --cv packages/ocr/training/runs/cv && pnpm test
 ```
 
 `pnpm crops` paths are relative to `packages/ocr`. When the segmentation changes, export the crops again with
-`--guide runs/cv/final.json` so training sees the splits the solver now makes.
+`--guide runs/cv/final.json` so training sees the splits the solver now makes. The held-out accuracy `train.py --cv`
+prints runs slightly high: where digits touch, the real crops were cut by the guide model, which has usually seen
+those captchas. `pnpm bench --cv` lets each fold model make its own cuts, so quote that one.
 
 ## License
 

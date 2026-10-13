@@ -155,7 +155,8 @@ export const STYLES: CaptchaStyle[] = [
     draw(ctx, digits) {
       fill(ctx, "#ffffff");
       ctx.fillStyle = "#c4c4c4";
-      for (let y = 2; y < 46; y += 5) for (let x = (y / 5) % 2 ? 1 : 3.5; x < 160; x += 5) ctx.fillRect(x, y, 1, 1);
+      // Staggered like the real one: a dot every 8 px, a row every 4 px, every other row shifted by half.
+      for (let row = 0; row * 4 < 46; row++) for (let x = row % 2 ? 4 : 0; x < 160; x += 8) ctx.fillRect(x, row * 4, 1, 1);
       ctx.lineWidth = 0.8;
       for (let i = 0; i < 8; i++) {
         ctx.strokeStyle = pick(["#666", "#888", "#aaa"]);

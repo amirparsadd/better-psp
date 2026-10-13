@@ -136,6 +136,12 @@ function optionalNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function parseDataUrl(value: unknown): { mime: string; bytes: Buffer } {
+  const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(value ?? ""));
+  if (!match) throw new HttpError(400, "Image must be a base64 data URL");
+  return { mime: match[1], bytes: Buffer.from(match[2], "base64") };
+}
+
 async function createPaymentLink(body: Body) {
   if (!MERCHANT_ID) throw new HttpError(400, "ZARINPAL_MERCHANT_ID is not set in .env");
   const amount = Number(body.amount ?? DEFAULT_AMOUNT);
@@ -187,13 +193,10 @@ async function saveCaptcha(body: Body): Promise<ManifestEntry> {
   const label = normalizeLabel(String(body.label ?? ""));
   if (!/^[0-9A-Za-z]+$/.test(label)) throw new HttpError(400, "Label must contain only digits or letters");
 
-  const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(body.image ?? ""));
-  if (!match) throw new HttpError(400, "Image must be a base64 data URL");
-  const mime = match[1];
+  const { mime, bytes } = parseDataUrl(body.image);
   const ext = IMAGE_EXTENSIONS[mime];
   if (!ext) throw new HttpError(400, `Unsupported image type ${mime}`);
 
-  const bytes = Buffer.from(match[2], "base64");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const duplicate = entries.find((entry) => entry.sha256 === sha256);
   if (duplicate) throw new HttpError(409, `Already saved as ${duplicate.file} (label ${duplicate.label})`);
@@ -231,23 +234,32 @@ function guessConfig(gateway: string): GatewayOcrConfig {
   return config.read === "classifier" ? config : { ...config, segment: config.segment ?? {}, read: "classifier" };
 }
 
-async function guessFor(gateway: string, mime: string, bytes: Buffer): Promise<{ text: string; confidence: number } | null> {
+// A captcha is guessed when it arrives and again when it is saved. Guessing blocks the server for a moment, so each
+// answer is kept for a while.
+const guesses = new Map<string, ManifestEntry["guess"]>();
+
+async function guessFor(gateway: string, mime: string, bytes: Buffer): Promise<ManifestEntry["guess"]> {
   if (mime !== "image/png") return null;
+  const key = `${gateway} ${createHash("sha256").update(bytes).digest("hex")}`;
+  if (guesses.has(key)) return guesses.get(key);
+  let guess: ManifestEntry["guess"] = null;
   try {
     const png = PNG.sync.read(bytes);
     const image = { width: png.width, height: png.height, data: new Uint8ClampedArray(png.data) };
     const { text, confidence } = await solveCaptcha(image, guessConfig(gateway), noTesseract, defaultClassifier());
-    return text ? { text, confidence: Math.round(confidence) } : null;
+    if (text) guess = { text, confidence: Math.round(confidence) };
   } catch {
-    return null;
+    // Not a readable PNG: no guess.
   }
+  guesses.set(key, guess);
+  if (guesses.size > 200) guesses.delete(guesses.keys().next().value!);
+  return guess;
 }
 
 async function guessCaptcha(body: Body) {
   const { gateway } = detectGateway(body.pageUrl);
-  const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(body.image ?? ""));
-  if (!match) throw new HttpError(400, "Image must be a base64 data URL");
-  return { guess: await guessFor(gateway, match[1], Buffer.from(match[2], "base64")) };
+  const { mime, bytes } = parseDataUrl(body.image);
+  return { guess: await guessFor(gateway, mime, bytes) };
 }
 
 // Live mode: a gateway tab running gateway.js (a bookmarklet, see GET /api/bookmarklet) sends its captcha here and a
@@ -305,15 +317,13 @@ function liveSession(body: Body): LiveSession {
 
 async function livePush(body: Body) {
   const session = liveSession(body);
-  const image = String(body.image ?? "");
-  const match = /^data:(image\/png);base64,([A-Za-z0-9+/=]+)$/.exec(image);
-  if (!match) throw new HttpError(400, "Image must be a PNG data URL");
+  const { mime, bytes } = parseDataUrl(body.image);
   const captcha: LiveCaptcha = {
     id: `${session.id}-${session.sent + 1}`,
-    image,
+    image: String(body.image),
     width: optionalNumber(body.width),
     height: optionalNumber(body.height),
-    guess: await guessFor(session.gateway, match[1], Buffer.from(match[2], "base64")),
+    guess: await guessFor(session.gateway, mime, bytes),
   };
   session.latest = captcha;
   session.sent++;

@@ -29,7 +29,14 @@ export async function createEngine(base: string, onProgress?: (fraction: number)
     });
     return createRecognize(worker as unknown as TesseractWorker<OffscreenCanvas>, toCanvas);
   };
-  const recognize: Recognize = async (image, psm) => (await (tesseract ??= startTesseract()))(image, psm);
+  const recognize: Recognize = async (image, psm) => {
+    // A failed download is not kept, so the next captcha that needs Tesseract tries again.
+    tesseract ??= startTesseract().catch((err) => {
+      tesseract = undefined;
+      throw err;
+    });
+    return (await tesseract)(image, psm);
+  };
   let queue: Promise<unknown> = Promise.resolve();
 
   return {

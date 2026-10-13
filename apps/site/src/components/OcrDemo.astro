@@ -182,15 +182,19 @@ import { STYLES } from "@better-psp/ocr/lookalikes";
   async function next() {
     const { style, answer } = draw();
     const mine = ++token;
+    // startEngine reports a failed load itself.
+    const ready = await startEngine().catch(() => null);
+    if (!ready || mine !== token) return;
+    status.textContent = "در حال خواندن…";
+    const image = captchaCanvas.getContext("2d")!.getImageData(0, 0, style.width, style.height);
     try {
-      const ready = await startEngine();
-      if (mine !== token) return;
-      status.textContent = "در حال خواندن…";
-      const image = captchaCanvas.getContext("2d")!.getImageData(0, 0, style.width, style.height);
       const reading = await ready.read(image, style.gateway);
       if (mine === token) show(reading, answer);
     } catch {
-      // startEngine already reported the failure.
+      // Only a captcha that cannot be cut into digits needs Tesseract, which is downloaded then.
+      if (mine === token) {
+        status.textContent = "این کد به موتور پشتیبان نیاز داشت که بارگیری نشد. اینترنت را بررسی کنید و دوباره «کد تازه» را بزنید.";
+      }
     }
   }
 
