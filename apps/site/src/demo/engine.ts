@@ -13,17 +13,23 @@ function toCanvas({ width, height, data }: RgbaImage): OffscreenCanvas {
 export type Reading = { text: string; confidence: number; processed: RgbaImage; ms: number; filled: boolean };
 
 export async function createEngine(base: string, onProgress?: (fraction: number) => void) {
-  const worker = await createWorker("eng", OEM.LSTM_ONLY, {
-    workerPath: `${base}tesseract/worker.min.js`,
-    corePath: `${base}tesseract/tesseract-core-simd-lstm.wasm.js`,
-    langPath: `${base}tesseract`,
-    gzip: true,
-    workerBlobURL: false,
-    logger: ({ status, progress }) => {
-      if (status === "loading language traineddata") onProgress?.(progress);
-    },
-  });
-  const recognize: Recognize = await createRecognize(worker as unknown as TesseractWorker<OffscreenCanvas>, toCanvas);
+  // The look-alikes are all known gateways, which the bundled digit classifier reads; Tesseract (about 15 MB) is only
+  // fetched if a captcha cannot be cut into digits.
+  let tesseract: Promise<Recognize> | undefined;
+  const startTesseract = async () => {
+    const worker = await createWorker("eng", OEM.LSTM_ONLY, {
+      workerPath: `${base}tesseract/worker.min.js`,
+      corePath: `${base}tesseract/tesseract-core-simd-lstm.wasm.js`,
+      langPath: `${base}tesseract`,
+      gzip: true,
+      workerBlobURL: false,
+      logger: ({ status, progress }) => {
+        if (status === "loading language traineddata") onProgress?.(progress);
+      },
+    });
+    return createRecognize(worker as unknown as TesseractWorker<OffscreenCanvas>, toCanvas);
+  };
+  const recognize: Recognize = async (image, psm) => (await (tesseract ??= startTesseract()))(image, psm);
   let queue: Promise<unknown> = Promise.resolve();
 
   return {

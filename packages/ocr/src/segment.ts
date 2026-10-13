@@ -1,4 +1,4 @@
-import { findComponents, fromGray, scale, threshold, toGray, type RgbaImage } from "./image.ts";
+import { erode, findComponents, fromGray, scale, threshold, toGray, type RgbaImage } from "./image.ts";
 
 export type SegmentOptions = {
   /** Shapes smaller than this fraction of the largest shape are treated as noise. */
@@ -47,6 +47,14 @@ function mergeOverlapping(parts: Part[]): Part[] {
   return result;
 }
 
+/** Splits a shape in two at a column, counted from its left edge. */
+function cutAt(part: Part, width: number, cut: number): [Part, Part] | null {
+  const left: number[] = [];
+  const right: number[] = [];
+  for (const index of part.pixels) ((index % width) - part.minX < cut ? left : right).push(index);
+  return left.length > 0 && right.length > 0 ? [boundsOf(left, width), boundsOf(right, width)] : null;
+}
+
 /** Splits touching glyphs at the column with the least ink in the middle of the shape. */
 function splitAtValley(part: Part, width: number): [Part, Part] | null {
   const columns = new Array<number>(widthOf(part)).fill(0);
@@ -55,11 +63,80 @@ function splitAtValley(part: Part, width: number): [Part, Part] | null {
   const to = Math.ceil(columns.length * 0.7);
   let cut = from;
   for (let x = from; x < to; x++) if (columns[x] < columns[cut]) cut = x;
+  return cutAt(part, width, cut);
+}
 
-  const left: number[] = [];
-  const right: number[] = [];
-  for (const index of part.pixels) ((index % width) - part.minX < cut ? left : right).push(index);
-  return left.length > 0 && right.length > 0 ? [boundsOf(left, width), boundsOf(right, width)] : null;
+/**
+ * Ways to split touching glyphs, for a classifier to choose from: the valley cut first, other straight cuts across
+ * the middle, then the pieces the shape breaks into as it is eroded, grown back over it and grouped into a left and
+ * a right half. Only the eroded pieces can separate glyphs that overlap in x, like Sadad's raised digits.
+ */
+function candidateSplits(part: Part, width: number): [Part, Part][] {
+  const candidates: [Part, Part][] = [];
+  const valley = splitAtValley(part, width);
+  if (valley) candidates.push(valley);
+  const partWidth = widthOf(part);
+  for (let cut = Math.floor(partWidth * 0.2); cut <= Math.ceil(partWidth * 0.8); cut += Math.max(1, Math.floor(partWidth / 20))) {
+    const halves = cutAt(part, width, cut);
+    if (halves) candidates.push(halves);
+  }
+
+  // One white pixel of margin, so the erosion also eats in from the edges of the bounding box.
+  const w = partWidth + 2;
+  const h = part.maxY - part.minY + 3;
+  const local = (index: number) => {
+    const x = index % width;
+    return ((index - x) / width - part.minY + 1) * w + (x - part.minX + 1);
+  };
+  const mask = new Uint8ClampedArray(w * h).fill(255);
+  for (const index of part.pixels) mask[local(index)] = 0;
+
+  let previousCount = 1;
+  for (let radius = 1; radius <= Math.ceil(h / 4); radius++) {
+    const found = findComponents(toGray(erode(radius)(fromGray(w, h, mask))), w, h).sort((a, b) => b.pixels.length - a.pixels.length);
+    if (found.length === 0) break;
+    const pieces = found
+      .filter((p) => p.pixels.length >= found[0].pixels.length * 0.08)
+      .slice(0, 4)
+      .sort((a, b) => a.minX + a.maxX - (b.minX + b.maxX));
+    if (pieces.length === previousCount) continue;
+    previousCount = pieces.length;
+    if (pieces.length < 2) continue;
+
+    // Grow the pieces back over the original shape one ring at a time, so each pixel joins the nearest piece.
+    const owner = new Int8Array(w * h).fill(-1);
+    let frontier: number[] = [];
+    pieces.forEach((piece, id) => piece.pixels.forEach((i) => ((owner[i] = id), frontier.push(i))));
+    while (frontier.length > 0) {
+      const next: number[] = [];
+      for (const i of frontier) {
+        const x = i % w;
+        const y = (i - x) / w;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const n = (y + dy) * w + x + dx;
+            if (x + dx < 0 || y + dy < 0 || x + dx >= w || y + dy >= h || mask[n] !== 0 || owner[n] !== -1) continue;
+            owner[n] = owner[i];
+            next.push(n);
+          }
+        }
+      }
+      frontier = next;
+    }
+
+    // Bits the growth never reaches (detached strokes merged in earlier) go with the piece whose center is nearest.
+    const centers = pieces.map((p) => (p.minX + p.maxX) / 2);
+    const nearest = (x: number) => centers.reduce((best, c, id) => (Math.abs(x - c) < Math.abs(x - centers[best]) ? id : best), 0);
+    for (let k = 1; k < pieces.length; k++) {
+      const halves: number[][] = [[], []];
+      for (const index of part.pixels) {
+        const i = local(index);
+        halves[(owner[i] !== -1 ? owner[i] : nearest(i % w)) < k ? 0 : 1].push(index);
+      }
+      if (halves[0].length > 0 && halves[1].length > 0) candidates.push([boundsOf(halves[0], width), boundsOf(halves[1], width)]);
+    }
+  }
+  return candidates;
 }
 
 function render(part: Part, sourceWidth: number, digitHeight: number): RgbaImage {
@@ -77,8 +154,17 @@ function render(part: Part, sourceWidth: number, digitHeight: number): RgbaImage
 /**
  * Cuts a binarized captcha into exactly `count` digit images, left to right. Returns null when the shapes cannot be
  * reconciled into that many digits, which is a strong signal that the read would be wrong.
+ *
+ * Touching glyphs are split at the thinnest column. Given `score` (how sure a classifier is that an image is one
+ * digit, 0 to 1), the last split, which must leave one digit on each side, goes wherever the two halves are most
+ * convincing digits instead.
  */
-export function segmentDigits(image: RgbaImage, count: number, options: SegmentOptions = {}): RgbaImage[] | null {
+export function segmentDigits(
+  image: RgbaImage,
+  count: number,
+  options: SegmentOptions = {},
+  score?: (digit: RgbaImage) => number,
+): RgbaImage[] | null {
   const { minAreaRatio = 0.1, digitHeight = 64 } = options;
   const components = findComponents(toGray(image), image.width, image.height);
   if (components.length === 0) return null;
@@ -104,7 +190,16 @@ export function segmentDigits(image: RgbaImage, count: number, options: SegmentO
       }
     } else {
       const widest = parts.reduce((a, b) => (widthOf(b) > widthOf(a) ? b : a));
-      const halves = splitAtValley(widest, image.width);
+      // The classifier can only judge a split whose halves are one digit each, so it picks only the last one.
+      const guided = score && parts.length === count - 1;
+      let halves = guided ? null : splitAtValley(widest, image.width);
+      if (guided) {
+        let best = -1;
+        for (const candidate of candidateSplits(widest, image.width)) {
+          const value = score(render(candidate[0], image.width, digitHeight)) * score(render(candidate[1], image.width, digitHeight));
+          if (value > best) [best, halves] = [value, candidate];
+        }
+      }
       if (!halves) return null;
       parts.splice(parts.indexOf(widest), 1, ...halves);
     }

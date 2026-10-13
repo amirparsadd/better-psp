@@ -1,0 +1,18 @@
+[project]
+name = "better-psp-ocr-training"
+version = "0.0.0"
+description = "Trains the digit classifier in packages/ocr/src/classify.ts from crops written by `pnpm crops`."
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.1", "torch==2.14.0"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+# The CPU build is a fifth of the CUDA one, and the model trains in minutes on a CPU.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

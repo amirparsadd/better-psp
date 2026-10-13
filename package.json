@@ -16,7 +16,8 @@
     "collect": "pnpm --filter @better-psp/collector start",
     "bench": "pnpm --filter @better-psp/ocr bench",
     "tune": "pnpm --filter @better-psp/ocr tune",
-    "inspect": "pnpm --filter @better-psp/ocr inspect"
+    "inspect": "pnpm --filter @better-psp/ocr inspect",
+    "crops": "pnpm --filter @better-psp/ocr crops"
   },
   "engines": {
     "node": ">=22.18"

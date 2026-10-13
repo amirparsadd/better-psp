@@ -1,5 +1,6 @@
 // Look-alikes of each gateway's captcha, drawn on a canvas. Sizes, colors and noise follow the real samples in
-// datasets/, so the solver's per-gateway pipeline gets something close to what it was tuned on.
+// datasets/, so the solver's per-gateway pipeline gets something close to what it was tuned on. The site's demo draws
+// them in the browser; `scripts/crops.ts` draws thousands in Node as training data for the digit classifier.
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -152,23 +153,27 @@ export const STYLES: CaptchaStyle[] = [
     width: 160,
     height: 46,
     draw(ctx, digits) {
-      fill(ctx, "#fbf5e2");
-      const raised = Math.floor(rand(0, 5));
-      const xs = slots(5, 10, 150, 3);
-      [...digits].forEach((d, i) => {
-        const small = i === raised;
-        glyph(ctx, d, xs[i]!, small ? 16 : 26 + rand(-2, 2), {
-          font: `bold ${small ? rand(17, 19) : rand(28, 31)}px ${SANS}`,
-          color: "#7b3f12",
-        });
-      });
-      ctx.strokeStyle = "#7b3f12";
+      fill(ctx, "#ffffff");
+      ctx.fillStyle = "#c4c4c4";
+      for (let y = 2; y < 46; y += 5) for (let x = (y / 5) % 2 ? 1 : 3.5; x < 160; x += 5) ctx.fillRect(x, y, 1, 1);
       ctx.lineWidth = 0.8;
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 8; i++) {
+        ctx.strokeStyle = pick(["#666", "#888", "#aaa"]);
         ctx.beginPath();
-        ctx.arc(rand(10, 150), rand(10, 36), rand(5, 9), rand(0, 3), rand(4, 6.2));
+        ctx.arc(rand(0, 160), rand(0, 46), rand(4, 14), 0, Math.PI * 2);
         ctx.stroke();
       }
+      // Every digit gets its own size; small ones ride high and tuck into their neighbours.
+      const sizes = [...digits].map(() => (Math.random() < 0.35 ? rand(16, 21) : rand(26, 36)));
+      let x = rand(18, 30);
+      [...digits].forEach((d, i) => {
+        const size = sizes[i]!;
+        glyph(ctx, d, x, size < 22 ? rand(12, 20) : rand(23, 30), {
+          font: `bold ${size}px Verdana, Tahoma, ${SANS}`,
+          color: pick(["#4a4a4a", "#555", "#5c5c5c"]),
+        });
+        x += 0.36 * (size + (sizes[i + 1] ?? size)) * rand(0.85, 1.1);
+      });
     },
   },
   {

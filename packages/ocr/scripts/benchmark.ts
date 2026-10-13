@@ -1,6 +1,7 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { createDigitClassifier, type DigitClassifier, type SerializedDigitModel } from "../src/classify.ts";
 import { configFor } from "../src/gateways.ts";
 import { solveCaptcha } from "../src/solve.ts";
 import { ROOT, createRecognizer, encodePng, loadSamples, type Sample } from "./node.ts";
@@ -12,9 +13,29 @@ const { values: args } = parseArgs({
     gateway: { type: "string", short: "g" },
     "min-confidence": { type: "string", default: "60" },
     raw: { type: "boolean", default: false },
+    /** A classifier JSON (train.py's final.json or fold-k.json) to use instead of the bundled one. */
+    model: { type: "string" },
+    /**
+     * A train.py --cv run: each captcha is read by the fold model that never saw it. The bundled model was trained on
+     * every captcha here, so only this gives an honest accuracy for the classifier.
+     */
+    cv: { type: "string" },
   },
 });
 const minConfidence = Number(args["min-confidence"]);
+
+const loadClassifier = async (file: string) =>
+  createDigitClassifier(JSON.parse(await readFile(file, "utf8")) as SerializedDigitModel);
+const modelClassifier = args.model ? await loadClassifier(args.model) : undefined;
+const folds: Record<string, number> = args.cv ? JSON.parse(await readFile(join(args.cv, "folds.json"), "utf8")) : {};
+const foldClassifiers = new Map<number, DigitClassifier>();
+async function classifierFor(file: string): Promise<DigitClassifier | undefined> {
+  if (!args.cv) return modelClassifier;
+  // Captchas labeled after the run are in no fold, and no fold model has seen them.
+  const fold = folds[file] ?? 0;
+  if (!foldClassifiers.has(fold)) foldClassifiers.set(fold, await loadClassifier(join(args.cv, `fold-${fold}.json`)));
+  return foldClassifiers.get(fold);
+}
 
 type Variant = "raw" | "tuned";
 type Result = Sample & { variant: Variant; text: string; confidence: number; ms: number; filled: boolean; correct: boolean };
@@ -43,7 +64,7 @@ for (const { image, ...sample } of samples) {
     const { text, confidence, processed } =
       variant === "raw"
         ? { ...(await recognizer.recognize(image, config.psm)), processed: image }
-        : await solveCaptcha(image, config, recognizer.recognize);
+        : await solveCaptcha(image, config, recognizer.recognize, await classifierFor(sample.file));
     const ms = performance.now() - started;
     const correct = text === sample.label;
     const filled = text.length === config.length && confidence >= minConfidence;
@@ -85,7 +106,8 @@ function printTable(variant: Variant) {
   const widths = header.map((h, i) => Math.max(h.length, ...lines.map((l) => l[i].length)));
   const format = (cells: string[]) => cells.map((c, i) => (i === 0 ? c.padEnd(widths[i]) : c.padStart(widths[i]))).join("  ");
 
-  console.log(`\n${variant === "raw" ? "Raw images (no preprocessing)" : "Tuned pipelines"} | fill when 5 digits and confidence >= ${minConfidence}`);
+  const title = variant === "raw" ? "Raw images (no preprocessing)" : args.cv ? `Tuned pipelines, held-out folds of ${args.cv}` : "Tuned pipelines";
+  console.log(`\n${title} | fill when 5 digits and confidence >= ${minConfidence}`);
   console.log(format(header));
   for (const line of lines) console.log(format(line));
 }
