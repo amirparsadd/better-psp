@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Captcha collector relay</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; padding: 16px; background: #0f1115; color: #e6e8ee; font: 14px/1.5 system-ui, sans-serif; }
+    b { color: #3ecf8e; }
+    .err { color: #ff5c5c; }
+  </style>
+</head>
+<body>
+  <p id="status">Waiting for the gateway tab…</p>
+  <p style="color:#8b93a7">Some gateways (Asan Pardakht) may not connect to other addresses, so their tab sends captchas through this window instead. Keep it open while you label.</p>
+  <script type="module">
+    // Forwards requests from the gateway tab that opened this window to the collector, and the answers back.
+    const GATEWAY_ORIGIN = /^https:\/\/[a-z0-9-]+\.shaparak\.ir(:\d+)?$/;
+    const status = document.querySelector("#status");
+    let relayed = 0;
+
+    if (!window.opener) {
+      status.className = "err";
+      status.textContent = "The gateway tab cannot talk to this window (its page cuts popup links). Use copy and paste for this gateway.";
+    } else {
+      window.opener.postMessage({ betterPsp: "ready" }, "*");
+    }
+
+    window.addEventListener("message", async (event) => {
+      const { data, origin, source } = event;
+      if (!GATEWAY_ORIGIN.test(origin) || data?.betterPsp !== "request") return;
+      if (data.path !== "/api/live/push" && data.path !== "/api/live/wait") return;
+      let reply;
+      try {
+        const res = await fetch(data.path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(data.body),
+        });
+        reply = { ok: res.ok, body: await res.json() };
+      } catch (err) {
+        reply = { ok: false, body: { error: err.message } };
+      }
+      source.postMessage({ betterPsp: "response", id: data.id, ...reply }, origin);
+      if (data.path === "/api/live/push") relayed++;
+      status.innerHTML = `Relaying for <b>${new URL(origin).host}</b>: ${relayed} captchas sent.`;
+    });
+  </script>
+</body>
+</html>

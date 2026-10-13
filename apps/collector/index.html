@@ -144,6 +144,13 @@
     .card-body { flex: 1; min-width: 220px; display: grid; gap: 8px; }
     .card .label { font: 600 22px ui-monospace, Menlo, monospace; letter-spacing: 0.15em; }
     .meta { color: var(--muted); font-size: 12.5px; }
+    #live { margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); }
+    #live a.bookmarklet { display: inline-block; padding: 4px 12px; border: 1px dashed var(--accent); border-radius: 8px; color: var(--accent); text-decoration: none; font-weight: 600; cursor: grab; }
+    #live-sessions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    #live-sessions:empty::after { content: "No gateway tab connected."; color: var(--muted); font-size: 13px; }
+    .guess { font-size: 13px; color: var(--warn); }
+    .guess:empty { display: none; }
+    .guess b { font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.1em; color: var(--text); }
     #recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
     #recent li { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 8px; }
     #recent li:hover { background: var(--panel-2); }
@@ -215,10 +222,18 @@
 
     <section>
       <h2><span class="step">4</span>Captchas</h2>
+      <div id="live">
+        <div class="row">
+          <a class="bookmarklet" id="bookmarklet" href="#">Better PSP: send captchas</a>
+          <span class="meta">Drag this to your bookmarks bar.</span>
+        </div>
+        <p class="hint" style="margin: 8px 0 0">Live mode: on a gateway's card page, click the bookmark. Its captcha appears below; after you press <kbd>⏎</kbd> the tab refreshes it and sends the next one. Connect several gateway tabs to label them in one stream. Steps 1 to 3 are not needed for this.</p>
+        <div id="live-sessions"></div>
+      </div>
       <div id="dropzone">
         <div>On the gateway, right-click the captcha, choose <b>Copy Image</b>, then press <kbd>⌘V</kbd> anywhere on this page.</div>
         <div>Then refresh the captcha on the gateway and repeat; every refresh is a new sample.</div>
-        <div>Label from the preview below, not from the gateway tab.</div>
+        <div>Label from the preview below, not from the gateway tab. If the model read something else, you are asked to check once more.</div>
         <input id="captcha-files" type="file" accept="image/*" multiple>
       </div>
       <div id="queue"></div>
@@ -415,13 +430,15 @@
       $("#queue .label")?.focus();
     }
 
-    function addCard(dataUrl) {
+    /** `live` is set for captchas sent by a gateway tab: { session, gateway, pageUrl, guess }. */
+    function addCard(dataUrl, live = null) {
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
         <img alt="captcha">
         <div class="card-body">
           <input class="label" type="text" placeholder="Type what you see" autocomplete="off" spellcheck="false" inputmode="numeric" dir="ltr">
+          <div class="guess"></div>
           <div class="row">
             <button class="primary save">Save <kbd>⏎</kbd></button>
             <button class="ghost discard">Discard <kbd>esc</kbd></button>
@@ -431,29 +448,49 @@
 
       const img = card.querySelector("img");
       const input = card.querySelector(".label");
+      if (live) card.dataset.session = live.session;
       img.src = dataUrl;
       img.onload = () => {
-        card.querySelector(".meta").textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+        card.querySelector(".meta").textContent = `${img.naturalWidth}×${img.naturalHeight}${live ? ` · ${live.gateway}` : ""}`;
       };
 
       function remove() {
         card.remove();
         focusNextCard();
+        if (live) {
+          api("/api/live/next", { session: live.session }).catch(() =>
+            toast(`The ${live.gateway} tab is no longer connected. Start a new session there and click the bookmark.`, "error"));
+        }
+      }
+
+      // The model's reading stays hidden until you have typed yours, so it cannot steer the label. When the two
+      // differ, the first Enter shows it and the second saves what you typed.
+      let guess = live?.guess ?? null;
+      let confirmed = null;
+      if (!live && state.gateway) {
+        api("/api/guess", { pageUrl: state.pageUrl, image: dataUrl }).then((r) => (guess = r.guess), () => {});
       }
 
       async function save() {
-        if (card.classList.contains("busy") || !requireGateway()) return;
+        if (card.classList.contains("busy") || (!live && !requireGateway())) return;
         const label = normalizeLabel(input.value);
         if (!label) {
           toast("Type the captcha first.", "error");
           input.focus();
           return;
         }
+        if (guess && guess.text !== label && confirmed !== label) {
+          confirmed = label;
+          card.querySelector(".guess").innerHTML =
+            `The model read <b>${escapeHtml(guess.text)}</b> (${guess.confidence}%). Check the picture: <kbd>⏎</kbd> again saves <b>${escapeHtml(label)}</b>, or fix it.`;
+          input.focus();
+          return;
+        }
         card.classList.add("busy");
         try {
           const entry = await api("/api/captcha", {
-            pageUrl: state.pageUrl,
-            authority: state.authority,
+            pageUrl: live ? live.pageUrl : state.pageUrl,
+            authority: live ? null : state.authority,
             label,
             image: dataUrl,
             width: img.naturalWidth || null,
@@ -462,7 +499,7 @@
           remove();
           prependRecent(entry);
           refreshStats();
-          toast(`Saved "${entry.label}" to ${entry.gateway}. Refresh the captcha, copy, paste.`, "ok");
+          toast(live ? `Saved "${entry.label}" to ${entry.gateway}.` : `Saved "${entry.label}" to ${entry.gateway}. Refresh the captcha, copy, paste.`, "ok");
         } catch (err) {
           card.classList.remove("busy");
           if (err.status === 409) remove();
@@ -474,6 +511,7 @@
       input.addEventListener("input", () => {
         const normalized = normalizeLabel(input.value);
         if (normalized !== input.value) input.value = normalized;
+        if (normalized !== confirmed) card.querySelector(".guess").textContent = "";
       });
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -559,6 +597,25 @@
     detect();
     for (const entry of await api("/api/recent")) $("#recent").append(recentItem(entry));
     refreshStats();
+
+    // Live mode
+    $("#bookmarklet").href = (await api("/api/bookmarklet")).href;
+    $("#bookmarklet").addEventListener("click", (event) => {
+      event.preventDefault();
+      toast("Drag it to the bookmarks bar, then click it on a gateway's card page.", "error");
+    });
+    const events = new EventSource("/api/live");
+    events.addEventListener("sessions", (event) => {
+      $("#live-sessions").innerHTML = JSON.parse(event.data)
+        .map((s) => `<span class="chip active">${escapeHtml(s.gateway)} tab <b>${s.sent}</b> sent</span>`)
+        .join("");
+    });
+    events.addEventListener("captcha", (event) => {
+      const { image, session, gateway, pageUrl, guess } = JSON.parse(event.data);
+      // A reconnecting stream replays each tab's unlabeled captcha.
+      if ([...document.querySelectorAll("#queue .card")].some((card) => card.dataset.session === session)) return;
+      addCard(image, { session, gateway, pageUrl, guess });
+    });
   </script>
 </body>
 </html>
