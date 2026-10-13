@@ -11,3 +11,8 @@ coverage/
 # Raw page snapshots may contain session tokens and merchant details; review before publishing
 datasets/*/pages/
 .astro/
+
+# Classifier training: crops, runs and Python bytecode (see README, "Retraining the classifier")
+packages/ocr/crops/
+packages/ocr/training/runs/
+__pycache__/

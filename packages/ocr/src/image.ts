@@ -31,9 +31,23 @@ export const grayscale = (): Step => mapGray((gray) => gray);
 
 export const invert = (): Step => mapGray((gray) => gray.map((v) => 255 - v));
 
-/** Grayscale by color distance from the background (median of border pixels). Removes colored backgrounds and grids. */
+/** The image laid over white, so transparent pixels count as paper rather than black. */
+function flatten({ width, height, data }: RgbaImage): RgbaImage {
+  const out = new Uint8ClampedArray(data.length);
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3] / 255;
+    for (let c = 0; c < 3; c++) out[i + c] = data[i + c] * alpha + 255 * (1 - alpha);
+    out[i + 3] = 255;
+  }
+  return { width, height, data: out };
+}
+
+/**
+ * Grayscale by color distance from the background (median of border pixels). Removes colored backgrounds and grids.
+ * Transparent pixels are treated as white: Parsian's newer captchas are drawn on a transparent background.
+ */
 export const backgroundDistance = (gain = 2): Step => (image) => {
-  const { width, height, data } = image;
+  const { width, height, data } = flatten(image);
   const border: number[][] = [[], [], []];
   for (let x = 0; x < width; x++) {
     for (const y of [0, height - 1]) for (let c = 0; c < 3; c++) border[c].push(data[(y * width + x) * 4 + c]);

@@ -10,6 +10,11 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "@types/pngjs": "^6.0.5",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@better-psp/ocr": "workspace:*",
+    "pngjs": "^7.0.0"
   }
 }

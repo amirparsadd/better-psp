@@ -5,15 +5,19 @@
   "type": "module",
   "description": "Captcha preprocessing and solving for Shaparak gateways. Browser-safe; Tesseract is injected by the caller.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./lookalikes": "./src/lookalikes.ts"
   },
   "scripts": {
     "bench": "node scripts/benchmark.ts",
     "tune": "node scripts/tune.ts",
     "inspect": "node scripts/inspect.ts",
-    "typecheck": "tsc"
+    "crops": "node scripts/crops.ts",
+    "typecheck": "tsc",
+    "test": "node --test test/*.test.ts"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "1.0.9",
     "@tesseract.js-data/eng": "^1.0.0",
     "@types/node": "^26.6.4",
     "@types/pngjs": "^6.0.5",

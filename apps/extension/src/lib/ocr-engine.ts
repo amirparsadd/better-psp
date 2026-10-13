@@ -63,10 +63,13 @@ export function createSolver(base: string) {
     }, IDLE_MS);
   }
 
+  // Known gateways are read by the bundled digit classifier; Tesseract only starts for the default pipeline and for
+  // captchas that cannot be cut into digits.
+  const recognize: Recognize = async (image, psm) => (await start()).recognize(image, psm);
+
   async function run(gateway: string, png: string): Promise<CaptchaSolution> {
     clearTimeout(idle);
     try {
-      const { recognize } = await start();
       const config = configFor(gateway);
       const { text, confidence } = await solveCaptcha(await decodePng(png), config, recognize);
       return text.length === config.length && confidence >= MIN_CONFIDENCE ? { text, confidence } : null;
